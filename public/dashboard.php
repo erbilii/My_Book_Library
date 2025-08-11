@@ -1,5 +1,5 @@
 <?php
-// public/dashboard.php — list books with filters, links to details (PHP 8.1-safe)
+// public/dashboard.php — list books with filters, safe escaping, role-based actions
 
 require_once __DIR__ . '/../db.php';
 require_once __DIR__ . '/../auth.php';
@@ -7,6 +7,10 @@ require_once __DIR__ . '/../i18n.php';
 
 require_login();
 $pdo = db();
+
+// ---- user role (viewer/editor/admin) ----
+$me = current_user();                  // expects ['role' => 'admin'|'editor'|'viewer', ...]
+$userRole = $me['role'] ?? 'viewer';   // default to viewer if missing
 
 $bookLanguages = [
   'ckb' => 'Kurdish',
@@ -21,14 +25,9 @@ $bookLanguages = [
   'zh'  => 'Chinese'
 ];
 
-// Helpers: escape & show-dash (avoid null to htmlspecialchars warnings)
-function esc($v): string {
-  return htmlspecialchars((string)($v ?? ''), ENT_QUOTES, 'UTF-8');
-}
-function showdash($v): string {
-  $t = trim((string)($v ?? ''));
-  return $t === '' ? '—' : esc($t);
-}
+// Helpers: escape & show-dash (avoid null warnings on PHP 8.1+)
+function esc($v): string { return htmlspecialchars((string)($v ?? ''), ENT_QUOTES, 'UTF-8'); }
+function showdash($v): string { $t = trim((string)($v ?? '')); return $t === '' ? '—' : esc($t); }
 
 // ---------- filters ----------
 $q        = trim($_GET['q'] ?? '');
@@ -91,7 +90,9 @@ include __DIR__ . '/partials/nav.php';
   <div class="d-flex align-items-center justify-content-between flex-wrap gap-2 mb-3">
     <h3 class="m-0">Books</h3>
     <div class="d-flex gap-2">
-      <a href="book_form.php" class="btn btn-success">+ Add Book</a>
+      <?php if ($userRole !== 'viewer'): ?>
+        <a href="book_form.php" class="btn btn-success">+ Add Book</a>
+      <?php endif; ?>
 
       <div class="btn-group">
         <button type="button" class="btn btn-outline-secondary dropdown-toggle" data-bs-toggle="dropdown" aria-expanded="false">
@@ -148,17 +149,18 @@ include __DIR__ . '/partials/nav.php';
           <th>cover</th>
           <th>Title</th>
           <th>Author</th>
-          <th>ISBN</th>
           <th>Year</th>
           <th>language</th>
           <th>Genre</th>
           <th>Tags</th>
-          <th>Actions</th>
+          <?php if ($userRole !== 'viewer'): ?>
+            <th>Actions</th>
+          <?php endif; ?>
         </tr>
       </thead>
       <tbody>
       <?php if (!$books): ?>
-        <tr><td colspan="10" class="text-center text-muted py-4">No books found.</td></tr>
+        <tr><td colspan="<?= $userRole !== 'viewer' ? '10' : '9' ?>" class="text-center text-muted py-4">No books found.</td></tr>
       <?php endif; ?>
 
       <?php foreach ($books as $idx => $b): ?>
@@ -179,7 +181,6 @@ include __DIR__ . '/partials/nav.php';
             </a>
           </td>
           <td><?= showdash($b['author']) ?></td>
-          <td><?= showdash($b['isbn']) ?></td>
           <td><?= showdash($b['year']) ?></td>
           <td>
             <?php
@@ -189,13 +190,15 @@ include __DIR__ . '/partials/nav.php';
           </td>
           <td><?= showdash($b['genre']) ?></td>
           <td><?= showdash($b['tags']) ?></td>
-          <td class="text-nowrap">
-            <a class="btn btn-sm btn-outline-primary" href="book_edit.php?id=<?= (int)$b['id'] ?>">Edit<br>Book</a>
-            <form class="d-inline" method="post" action="book_delete.php" onsubmit="return confirm('Delete this book?')">
-              <input type="hidden" name="id" value="<?= (int)$b['id'] ?>">
-              <button class="btn btn-sm btn-outline-danger" type="submit">Delete</button>
-            </form>
-          </td>
+          <?php if ($userRole !== 'viewer'): ?>
+            <td class="text-nowrap">
+              <a class="btn btn-sm btn-outline-primary" href="book_edit.php?id=<?= (int)$b['id'] ?>">Edit<br>Book</a>
+              <form class="d-inline" method="post" action="book_delete.php" onsubmit="return confirm('Delete this book?')">
+                <input type="hidden" name="id" value="<?= (int)$b['id'] ?>">
+                <button class="btn btn-sm btn-outline-danger" type="submit">Delete</button>
+              </form>
+            </td>
+          <?php endif; ?>
         </tr>
       <?php endforeach; ?>
       </tbody>

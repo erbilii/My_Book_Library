@@ -1,5 +1,5 @@
 <?php
-// public/book_view.php — show a single book in detail (single Back button)
+// public/book_view.php — show a single book in detail (role-gated Edit)
 
 require_once __DIR__ . '/../db.php';
 require_once __DIR__ . '/../auth.php';
@@ -8,9 +8,13 @@ require_once __DIR__ . '/../i18n.php';
 require_login();
 $pdo = db();
 
-// Helpers (PHP 8.1 safe)
+// PHP 8.1–safe helpers
 function esc($v): string { return htmlspecialchars((string)($v ?? ''), ENT_QUOTES, 'UTF-8'); }
-function show($v): string { $t = trim((string)($v ?? '')); return $t === '' ? '—' : esc($t); }
+function showv($v): string { $t = trim((string)($v ?? '')); return $t === '' ? '—' : esc($t); }
+
+// Current user role
+$me = current_user();
+$userRole = $me['role'] ?? 'viewer';   // 'admin' | 'editor' | 'viewer'
 
 // Get id
 $id = isset($_GET['id']) ? (int)$_GET['id'] : 0;
@@ -52,9 +56,11 @@ include __DIR__ . '/partials/nav.php';
       <div class="card shadow-sm">
         <div class="card-body">
           <div class="d-flex justify-content-between align-items-start flex-wrap gap-2">
-            <h2 class="card-title mb-1"><?= show($book['title']) ?></h2>
+            <h2 class="card-title mb-1"><?= showv($book['title']) ?></h2>
             <div class="d-flex gap-2">
-              <a href="book_edit.php?id=<?= (int)$book['id'] ?>" class="btn btn-primary">Edit</a>
+              <?php if ($userRole !== 'viewer'): ?>
+                <a href="book_edit.php?id=<?= (int)$book['id'] ?>" class="btn btn-primary">Edit</a>
+              <?php endif; ?>
               <a href="dashboard.php" class="btn btn-secondary">Back</a>
             </div>
           </div>
@@ -64,31 +70,31 @@ include __DIR__ . '/partials/nav.php';
           <div class="row g-3">
             <div class="col-md-6">
               <div class="small text-muted">Author</div>
-              <div class="fs-5"><?= show($book['author']) ?></div>
+              <div class="fs-5"><?= showv($book['author']) ?></div>
             </div>
 
             <?php if (!empty($book['isbn'])): ?>
             <div class="col-md-6">
               <div class="small text-muted">ISBN</div>
-              <div class="fs-5"><?= show($book['isbn']) ?></div>
+              <div class="fs-5"><?= showv($book['isbn']) ?></div>
             </div>
             <?php endif; ?>
 
             <div class="col-md-3">
               <div class="small text-muted">Year</div>
-              <div class="fs-5"><?= show($book['year']) ?></div>
+              <div class="fs-5"><?= showv($book['year']) ?></div>
             </div>
 
             <div class="col-md-3">
               <div class="small text-muted">Language</div>
               <div class="fs-5">
-                <?= show($bookLanguages[$book['language'] ?? ''] ?? ($book['language'] ?? '')) ?>
+                <?= showv($bookLanguages[$book['language'] ?? ''] ?? ($book['language'] ?? '')) ?>
               </div>
             </div>
 
             <div class="col-md-6">
               <div class="small text-muted">Genre</div>
-              <div class="fs-5"><?= show($book['genre']) ?></div>
+              <div class="fs-5"><?= showv($book['genre']) ?></div>
             </div>
 
             <div class="col-12">
@@ -109,7 +115,7 @@ include __DIR__ . '/partials/nav.php';
 
             <div class="col-12">
               <div class="small text-muted mb-1">Description</div>
-              <p class="mb-0"><?= nl2br(show($book['description'])) ?></p>
+              <p class="mb-0"><?= nl2br(showv($book['description'])) ?></p>
             </div>
           </div>
 
