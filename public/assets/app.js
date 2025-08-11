@@ -1,4 +1,4 @@
-// app.js — no dark mode code here
+// app.js — exports + clickable rows (no dark mode code)
 
 // ====== Export helpers (CSV, XLSX, PDF) from #booksTable ======
 function tableTo2DArray(table){
@@ -50,3 +50,11 @@ if (exportPdf && tbl) {
     doc.save('books.pdf');
   });
 }
+
+// ====== Make any table row with data-href clickable (but ignore buttons/links) ======
+document.addEventListener('click', (e) => {
+  const row = e.target.closest('tr[data-href]');
+  if (!row) return;
+  if (e.target.closest('a, button, input, label, select, textarea')) return;
+  window.location.href = row.getAttribute('data-href');
+});

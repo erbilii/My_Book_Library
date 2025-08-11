@@ -1,9 +1,11 @@
 <?php
+// public/book_form.php
+
 require_once __DIR__ . '/../db.php';
 require_once __DIR__ . '/../auth.php';
 require_once __DIR__ . '/../i18n.php';
+
 require_login();
-require_role(['admin', 'editor']);
 $pdo = db();
 
 $bookLanguages = [
@@ -19,155 +21,242 @@ $bookLanguages = [
     'zh' => 'Chinese'
 ];
 
-$id = (int) ($_GET['id'] ?? 0);
-$isEdit = $id > 0;
-$book = [
-    'title' => '',
-    'cover' => '',
-    'author' => '',
-    'isbn' => '',
-    'year' => '',
-    'language_code' => 'en',
-    'genre_id' => '',
-    'tags' => '',
-    'description' => ''
+$genres = [
+    "Literary Fiction",
+    "Historical Fiction",
+    "Contemporary Fiction",
+    "Speculative Fiction",
+    "Mystery",
+    "Thriller",
+    "Crime Fiction",
+    "Adventure",
+    "Romance",
+    "Fantasy",
+    "High/Epic Fantasy",
+    "Urban Fantasy",
+    "Dark Fantasy",
+    "Science Fiction",
+    "Hard Science Fiction",
+    "Soft Science Fiction",
+    "Space Opera",
+    "Cyberpunk",
+    "Dystopian",
+    "Time Travel",
+    "Horror",
+    "Magical Realism",
+    "Satire",
+    "Paranormal",
+    "Biography",
+    "Autobiography",
+    "Memoir",
+    "Self-Help",
+    "True Crime",
+    "History",
+    "Science & Technology",
+    "Philosophy",
+    "Psychology",
+    "Business & Economics",
+    "Politics & Current Affairs",
+    "Travel & Exploration",
+    "Health, Fitness & Nutrition",
+    "Spirituality & Religion",
+    "Education & Study Guides",
+    "Art & Photography",
+    "Poetry",
+    "Drama",
+    "Screenplay",
+    "Picture Books",
+    "Early Reader",
+    "Middle Grade",
+    "Young Adult",
+    "Children’s Fantasy",
+    "Children’s Adventure",
+    "Children’s Educational",
+    "Graphic Novels",
+    "Comics",
+    "Anthologies",
+    "Short Stories",
+    "Novellas",
+    "Experimental Fiction"
 ];
 
-if ($isEdit) {
-    $stmt = $pdo->prepare('SELECT * FROM books WHERE id=?');
-    $stmt->execute([$id]);
-    $book = $stmt->fetch() ?: $book;
-}
+$errors = [];
+$title = $author = $year = $language = $genre = $tags = $description = "";
+$coverPath = null;
 
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
-    $data = [
-        'title' => trim($_POST['title'] ?? ''),
-        'author' => trim($_POST['author'] ?? ''),
-        'isbn' => trim($_POST['isbn'] ?? ''),
-        'year' => (int) ($_POST['year'] ?? 0),
-        'language_code' => $_POST['language_code'] ?? 'en',
-        'genre_id' => ($_POST['genre_id'] ?? '') !== '' ? (int) $_POST['genre_id'] : null,
-        'tags' => trim($_POST['tags'] ?? ''),
-        'description' => trim($_POST['description'] ?? ''),
-    ];
+    $title = trim($_POST['title'] ?? '');
+    $author = trim($_POST['author'] ?? '');
+    $year = trim($_POST['year'] ?? '');
+    $language = $_POST['language'] ?? '';
+    $genre = $_POST['genre'] ?? '';
+    $tags = trim($_POST['tags'] ?? '');
+    $description = trim($_POST['description'] ?? '');
 
-    $uploadsDir = __DIR__ . '/uploads';
-    if (!is_dir($uploadsDir)) {
-        @mkdir($uploadsDir, 0755, true);
+    if ($title === '')
+        $errors['title'] = 'Title is required.';
+    if ($author === '')
+        $errors['author'] = 'Author is required.';
+    if ($year === '' || !preg_match('/^\d{3,4}$/', $year))
+        $errors['year'] = 'Enter a valid year.';
+    if (!isset($bookLanguages[$language]))
+        $errors['language'] = 'Select a valid language.';
+    if (!in_array($genre, $genres, true))
+        $errors['genre'] = 'Select a valid genre.';
+    if ($tags === '')
+        $errors['tags'] = 'Tags are required.';
+    if ($description === '')
+        $errors['description'] = 'Description is required.';
+
+    // Cover upload (required)
+    if (!isset($_FILES['cover']) || $_FILES['cover']['error'] === UPLOAD_ERR_NO_FILE) {
+        $errors['cover'] = 'Cover image is required.';
+    } elseif ($_FILES['cover']['error'] !== UPLOAD_ERR_OK) {
+        $errors['cover'] = 'Failed to upload cover.';
+    } else {
+        $allowed = ['image/jpeg' => 'jpg', 'image/png' => 'png', 'image/webp' => 'webp'];
+        $mime = mime_content_type($_FILES['cover']['tmp_name']);
+        if (!isset($allowed[$mime])) {
+            $errors['cover'] = 'Cover must be JPG, PNG, or WEBP.';
+        }
     }
 
-    $coverPath = $book['cover'] ?? null;
-    if (!empty($_FILES['cover']['name']) && $_FILES['cover']['error'] === UPLOAD_ERR_OK) {
-        $tmp = $_FILES['cover']['tmp_name'];
-        $size = (int) $_FILES['cover']['size'];
-        $f = finfo_open(FILEINFO_MIME_TYPE);
-        $mime = finfo_file($f, $tmp);
-        finfo_close($f);
-        $allowed = ['image/jpeg' => 'jpg', 'image/png' => 'png', 'image/webp' => 'webp'];
-        if (!isset($allowed[$mime]))
-            die('Invalid image type. Use JPG/PNG/WEBP.');
-        if ($size > 2 * 1024 * 1024)
-            die('Image too large (max 2MB).');
-
+    if (!$errors) {
         $ext = $allowed[$mime];
-        $name = 'cover_' . time() . '_' . bin2hex(random_bytes(4)) . '.' . $ext;
-        $destRel = 'uploads/' . $name;
-        $destAbs = __DIR__ . '/' . $destRel;
-        if (!move_uploaded_file($tmp, $destAbs))
-            die('Failed to save image.');
+        $dir = __DIR__ . '/uploads/covers';
+        if (!is_dir($dir)) {
+            @mkdir($dir, 0775, true);
+        }
+        $basename = bin2hex(random_bytes(8)) . '.' . $ext;
+        $dest = $dir . '/' . $basename;
 
-        if (!empty($book['cover'])) {
-            $oldAbs = __DIR__ . '/' . $book['cover'];
-            if (is_file($oldAbs)) {
-                @unlink($oldAbs);
+        if (!move_uploaded_file($_FILES['cover']['tmp_name'], $dest)) {
+            $errors['cover'] = 'Could not save uploaded file.';
+        } else {
+            $coverPath = 'uploads/covers/' . $basename;
+
+            $stmt = $pdo->prepare("
+        INSERT INTO books
+          (title, author, isbn, year, language, genre, tags, description, cover_path, created_at)
+        VALUES
+          (:title, :author, NULL, :year, :language, :genre, :tags, :description, :cover_path, NOW())
+      ");
+            $ok = $stmt->execute([
+                ':title' => $title,
+                ':author' => $author,
+                ':year' => (int) $year,
+                ':language' => $language,
+                ':genre' => $genre,
+                ':tags' => $tags,
+                ':description' => $description,
+                ':cover_path' => $coverPath,
+            ]);
+
+            if ($ok) {
+                header('Location: dashboard.php?msg=book_added');
+                exit;
+            } else {
+                $errors['general'] = 'Database error. Could not save the book.';
             }
         }
-        $coverPath = $destRel;
     }
-
-    if ($isEdit) {
-        $stmt = $pdo->prepare('UPDATE books SET title=?, cover=?, author=?, isbn=?, year=?, language_code=?, genre_id=?, tags=?, description=?, updated_at=NOW() WHERE id=?');
-        $stmt->execute([$data['title'], $coverPath, $data['author'], $data['isbn'], $data['year'], $data['language_code'], $data['genre_id'], $data['tags'], $data['description'], $id]);
-    } else {
-        $stmt = $pdo->prepare('INSERT INTO books(title,cover,author,isbn,year,language_code,genre_id,tags,description) VALUES(?,?,?,?,?,?,?,?,?)');
-        $stmt->execute([$data['title'], $coverPath, $data['author'], $data['isbn'], $data['year'], $data['language_code'], $data['genre_id'], $data['tags'], $data['description']]);
-    }
-
-    header('Location: dashboard.php');
-    exit;
 }
 
-$genres = $pdo->query('SELECT id,name FROM genres ORDER BY name')->fetchAll();
 include __DIR__ . '/partials/header.php';
 include __DIR__ . '/partials/nav.php';
 ?>
-<div class="container py-4">
+
+<div class="container my-4">
     <div class="card shadow-sm">
         <div class="card-body">
-            <h1 class="h5 mb-3"><?= $isEdit ? t('edit_book') : t('add_book') ?></h1>
-            <form method="post" class="row g-3" enctype="multipart/form-data">
-                <div class="col-md-6">
-                    <label class="form-label"><?= t('title') ?></label>
-                    <input name="title" class="form-control" required value="<?= htmlspecialchars($book['title']) ?>">
+            <h3 class="card-title mb-3">Add Book</h3>
+
+            <?php if (!empty($errors['general'])): ?>
+                <div class="alert alert-danger"><?= htmlspecialchars($errors['general']) ?></div>
+            <?php endif; ?>
+
+            <form method="post" enctype="multipart/form-data" novalidate>
+                <div class="row g-3">
+                    <div class="col-md-6">
+                        <label class="form-label">Title</label>
+                        <input type="text" name="title"
+                            class="form-control <?= isset($errors['title']) ? 'is-invalid' : '' ?>" required
+                            value="<?= htmlspecialchars($title) ?>">
+                        <div class="invalid-feedback"><?= $errors['title'] ?? '' ?></div>
+                    </div>
+
+                    <div class="col-md-6">
+                        <label class="form-label">Cover</label>
+                        <input type="file" name="cover" accept="image/*"
+                            class="form-control <?= isset($errors['cover']) ? 'is-invalid' : '' ?>" required>
+                        <div class="invalid-feedback"><?= $errors['cover'] ?? '' ?></div>
+                    </div>
+
+                    <div class="col-md-6">
+                        <label class="form-label">Author</label>
+                        <input type="text" name="author"
+                            class="form-control <?= isset($errors['author']) ? 'is-invalid' : '' ?>" required
+                            value="<?= htmlspecialchars($author) ?>">
+                        <div class="invalid-feedback"><?= $errors['author'] ?? '' ?></div>
+                    </div>
+
+                    <div class="col-md-6">
+                        <label class="form-label">Year</label>
+                        <input type="number" name="year" min="0" max="<?= date('Y') + 1 ?>" step="1"
+                            class="form-control <?= isset($errors['year']) ? 'is-invalid' : '' ?>" required
+                            value="<?= htmlspecialchars($year) ?>">
+                        <div class="invalid-feedback"><?= $errors['year'] ?? '' ?></div>
+                    </div>
+
+                    <div class="col-md-6">
+                        <label class="form-label">Language</label>
+                        <select name="language" class="form-select <?= isset($errors['language']) ? 'is-invalid' : '' ?>"
+                            required>
+                            <?php foreach ($bookLanguages as $k => $v): ?>
+                                <option value="<?= htmlspecialchars($k) ?>" <?= $language === $k ? 'selected' : '' ?>>
+                                    <?= htmlspecialchars($v) ?></option>
+                            <?php endforeach; ?>
+                        </select>
+                        <div class="invalid-feedback"><?= $errors['language'] ?? '' ?></div>
+                    </div>
+
+                    <div class="col-md-6">
+                        <label class="form-label">Genre</label>
+                        <select name="genre" class="form-select <?= isset($errors['genre']) ? 'is-invalid' : '' ?>"
+                            required>
+                            <option value="" disabled <?= $genre === '' ? 'selected' : '' ?>>—</option>
+                            <?php foreach ($genres as $g): ?>
+                                <option value="<?= htmlspecialchars($g) ?>" <?= $genre === $g ? 'selected' : '' ?>>
+                                    <?= htmlspecialchars($g) ?></option>
+                            <?php endforeach; ?>
+                        </select>
+                        <div class="invalid-feedback"><?= $errors['genre'] ?? '' ?></div>
+                    </div>
+
+                    <div class="col-md-6">
+                        <label class="form-label">Tags</label>
+                        <input type="text" name="tags" placeholder="comma,separated,keywords"
+                            class="form-control <?= isset($errors['tags']) ? 'is-invalid' : '' ?>" required
+                            value="<?= htmlspecialchars($tags) ?>">
+                        <div class="invalid-feedback"><?= $errors['tags'] ?? '' ?></div>
+                    </div>
+
+                    <div class="col-12">
+                        <label class="form-label">Description</label>
+                        <textarea name="description" rows="6"
+                            class="form-control <?= isset($errors['description']) ? 'is-invalid' : '' ?>"
+                            required><?= htmlspecialchars($description) ?></textarea>
+                        <div class="invalid-feedback"><?= $errors['description'] ?? '' ?></div>
+                    </div>
                 </div>
-                <div class="col-md-3">
-                    <label class="form-label">Cover</label>
-                    <input type="file" name="cover" accept="image/*" class="form-control">
-                    <?php if (!empty($book['cover'])): ?>
-                        <div class="mt-2">
-                            <img src="<?= htmlspecialchars($book['cover']) ?>" alt="cover"
-                                style="width:90px;height:120px;object-fit:cover;border-radius:6px;">
-                        </div>
-                    <?php endif; ?>
-                </div>
-                <div class="col-md-6">
-                    <label class="form-label"><?= t('author') ?></label>
-                    <input name="author" class="form-control" required value="<?= htmlspecialchars($book['author']) ?>">
-                </div>
-                <div class="col-md-3">
-                    <label class="form-label"><?= t('isbn') ?></label>
-                    <input name="isbn" class="form-control" value="<?= htmlspecialchars($book['isbn']) ?>">
-                </div>
-                <div class="col-md-3">
-                    <label class="form-label"><?= t('year') ?></label>
-                    <input type="number" name="year" class="form-control"
-                        value="<?= htmlspecialchars($book['year']) ?>">
-                </div>
-                <div class="col-md-3">
-                    <label class="form-label"><?= t('language') ?></label>
-                    <select name="language_code" class="form-select">
-                        <?php foreach ($bookLanguages as $code => $label): ?>
-                            <option value="<?= $code ?>" <?= $book['language_code'] === $code ? 'selected' : '' ?>>
-                                <?= htmlspecialchars($label) ?></option>
-                        <?php endforeach; ?>
-                    </select>
-                </div>
-                <div class="col-md-3">
-                    <label class="form-label"><?= t('genre') ?></label>
-                    <select name="genre_id" class="form-select">
-                        <option value="">—</option>
-                        <?php foreach ($genres as $g): ?>
-                            <option value="<?= $g['id'] ?>" <?= (int) $book['genre_id'] === (int) $g['id'] ? 'selected' : '' ?>>
-                                <?= htmlspecialchars($g['name']) ?></option>
-                        <?php endforeach; ?>
-                    </select>
-                </div>
-                <div class="col-md-6">
-                    <label class="form-label"><?= t('tags') ?></label>
-                    <input name="tags" class="form-control" value="<?= htmlspecialchars($book['tags']) ?>"
-                        placeholder="comma,separated,keywords">
-                </div>
-                <div class="col-12">
-                    <label class="form-label"><?= t('description') ?></label>
-                    <textarea name="description" class="form-control"
-                        rows="4"><?= htmlspecialchars($book['description']) ?></textarea>
-                </div>
-                <div class="col-12 d-flex gap-2">
-                    <button class="btn btn-primary"><?= t('save') ?></button>
-                    <a class="btn btn-secondary" href="dashboard.php"><?= t('cancel') ?></a>
+
+                <div class="mt-4 d-flex gap-2">
+                    <button class="btn btn-primary" type="submit">Save</button>
+                    <a class="btn btn-secondary" href="dashboard.php">Cancel</a>
                 </div>
             </form>
         </div>
     </div>
 </div>
+
 <?php include __DIR__ . '/partials/footer.php'; ?>
