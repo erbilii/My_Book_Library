@@ -20,17 +20,9 @@ $isAdmin = $user && $user['role'] === 'admin';
             </ul>
 
             <div class="d-flex align-items-center gap-2">
-                <div class="dropdown">
-                    <button class="btn btn-outline-secondary dropdown-toggle"
-                        data-bs-toggle="dropdown"><?= t('language_ui') ?></button>
-                    <ul class="dropdown-menu dropdown-menu-end">
-                        <?php foreach (($cfg['locales'] ?? []) as $code => $meta): ?>
-                            <li><a class="dropdown-item"
-                                    href="?lang=<?= $code ?>"><?= htmlspecialchars($meta['label']) ?></a></li>
-                        <?php endforeach; ?>
-                    </ul>
-                </div>
-                <button id="themeToggle" class="btn btn-outline-secondary">🌙 <?= t('dark_mode') ?></button>
+                <button id="themeToggle" class="btn btn-outline-secondary">
+                    🌙 <span class="label"><?= t('dark_mode') ?></span>
+                </button>
                 <?php if ($user): ?>
                     <span class="navbar-text small">👤 <?= htmlspecialchars($user['name']) ?>
                         (<?= htmlspecialchars($user['role']) ?>)</span>

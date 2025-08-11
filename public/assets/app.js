@@ -1,13 +1,26 @@
-// Dark mode toggle
-const toggleBtn = document.getElementById('themeToggle');
-if (toggleBtn) {
-  toggleBtn.addEventListener('click', ()=>{
-    const cur = document.body.getAttribute('data-theme')||'light';
-    const next = cur==='light'?'dark':'light';
-    document.body.setAttribute('data-theme', next);
-    try{ localStorage.setItem('theme', next);}catch(e){}
+// Dark mode toggle (Bootstrap 5.3)
+(function () {
+  const root = document.documentElement;
+  const btn  = document.getElementById('themeToggle');
+  const KEY  = 'theme';
+
+  function apply(t) {
+    root.setAttribute('data-bs-theme', t);
+    const label = btn ? btn.querySelector('.label') : null;
+    if (label) label.textContent = (t === 'dark') ? 'Light mode' : 'Dark mode';
+  }
+
+  const saved = localStorage.getItem(KEY) ||
+    (window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light');
+  apply(saved);
+
+  btn && btn.addEventListener('click', (e) => {
+    e.preventDefault();
+    const next = (root.getAttribute('data-bs-theme') === 'dark') ? 'light' : 'dark';
+    localStorage.setItem(KEY, next);
+    apply(next);
   });
-}
+})();
 
 // Export helpers (CSV, XLSX, PDF) from #booksTable
 function tableTo2DArray(table){
@@ -16,33 +29,32 @@ function tableTo2DArray(table){
 }
 
 const tbl = document.getElementById('booksTable');
-const exportCsv = document.getElementById('exportCsv');
+const exportCsv  = document.getElementById('exportCsv');
 const exportXlsx = document.getElementById('exportXlsx');
-const exportPdf = document.getElementById('exportPdf');
-
-function download(filename, text) {
-  const a = document.createElement('a');
-  a.setAttribute('href','data:text/plain;charset=utf-8,'+encodeURIComponent(text));
-  a.setAttribute('download', filename);
-  a.style.display='none';
-  document.body.appendChild(a); a.click(); document.body.removeChild(a);
-}
+const exportPdf  = document.getElementById('exportPdf');
 
 if (exportCsv && tbl) {
   exportCsv.addEventListener('click', (e)=>{
     e.preventDefault();
     const data = tableTo2DArray(tbl);
-    const csv = data.map(row => row.map(v=>`"${v.replaceAll('"','""')}"`).join(',')).join('\n');
-    download('books.csv', csv);
+    const csv  = data.map(r=>r.map(v=>
+      /[",\n]/.test(v) ? '"' + v.replace(/"/g,'""') + '"' : v
+    ).join(',')).join('\n');
+    const blob = new Blob([csv], {type:'text/csv;charset=utf-8;'});
+    const a = document.createElement('a');
+    a.href = URL.createObjectURL(blob);
+    a.download = 'books.csv';
+    a.click();
+    URL.revokeObjectURL(a.href);
   });
 }
 
 if (exportXlsx && tbl) {
-  exportXlsx.addEventListener('click', (e)=>{
+  exportXlsx.addEventListener('click', async (e)=>{
     e.preventDefault();
+    const wb = XLSX.utils.book_new();
     const data = tableTo2DArray(tbl);
     const ws = XLSX.utils.aoa_to_sheet(data);
-    const wb = XLSX.utils.book_new();
     XLSX.utils.book_append_sheet(wb, ws, 'Books');
     XLSX.writeFile(wb, 'books.xlsx');
   });
