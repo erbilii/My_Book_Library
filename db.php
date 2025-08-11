@@ -1,20 +1,21 @@
 <?php
-require_once __DIR__ . '/config.php';
-function db() {
-    static $pdo = null;
-    if ($pdo === null) {
-        $dsn = 'mysql:host=' . DB_HOST . ';dbname=' . DB_NAME . ';charset=utf8mb4';
-        $options = [
-            PDO::ATTR_ERRMODE => PDO::ERRMODE_EXCEPTION,
-            PDO::ATTR_DEFAULT_FETCH_MODE => PDO::FETCH_ASSOC,
-            PDO::ATTR_EMULATE_PREPARES => false,
-        ];
-        try {
-            $pdo = new PDO($dsn, DB_USER, DB_PASS, $options);
-        } catch (PDOException $e) {
-            die('Database connection failed: ' . htmlspecialchars($e->getMessage()));
-        }
-    }
+// db.php
+function db(): PDO
+{
+    static $pdo;
+    if ($pdo)
+        return $pdo;
+    $cfg = require __DIR__ . '/config.php';
+    $dsn = sprintf(
+        'mysql:host=%s;port=%d;dbname=%s;charset=%s',
+        $cfg['db']['host'],
+        $cfg['db']['port'],
+        $cfg['db']['name'],
+        $cfg['db']['charset']
+    );
+    $pdo = new PDO($dsn, $cfg['db']['user'], $cfg['db']['pass'], [
+        PDO::ATTR_ERRMODE => PDO::ERRMODE_EXCEPTION,
+        PDO::ATTR_DEFAULT_FETCH_MODE => PDO::FETCH_ASSOC,
+    ]);
     return $pdo;
 }
-?>

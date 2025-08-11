@@ -1,13 +1,25 @@
 <?php
-// Update these for your local DB
-define('DB_HOST', 'localhost');
-define('DB_NAME', 'bookstack');
-define('DB_USER', 'root');
-define('DB_PASS', '');
-// App settings
-define('APP_NAME', 'BookStack');
-define('BASE_URL', ''); // leave empty for auto, or '/bookstack-php/public'
-// Session settings
-session_name('bookstack_sess');
-session_start();
-?>
+// config.php
+// Adjust these for your environment
+return [
+  'db' => [
+    'host' => '127.0.0.1',
+    'port' => 3306,
+    'name' => 'book_system',
+    'user' => 'root',
+    'pass' => '',
+    'charset' => 'utf8mb4',
+  ],
+  // Default UI language if none selected
+  'default_locale' => 'en',
+  // Supported UI languages (RTL aware)
+  'locales' => [
+    'en' => ['label' => 'English', 'rtl' => false],
+    'ckb' => ['label' => 'Kurdî (Sorani)', 'rtl' => true],
+    'ar' => ['label' => 'العربية', 'rtl' => true],
+    'fa' => ['label' => 'فارسی', 'rtl' => true],
+    'tr' => ['label' => 'Türkçe', 'rtl' => false],
+  ],
+  // App name
+  'app_name' => 'Book System Management',
+];

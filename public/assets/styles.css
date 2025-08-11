@@ -1,0 +1,15 @@
+:root{ --bg:#ffffff; --fg:#111111; --muted:#6c757d; --card:#ffffff; }
+[data-theme="dark"]{ --bg:#0e0f12; --fg:#e6e6e6; --muted:#a0a0a0; --card:#151720; }
+
+html,body{ background:var(--bg); color:var(--fg); }
+.card{ background:var(--card); }
+#topbar{ background:var(--card); }
+.table thead th{ position:sticky; top:0; background:var(--card); z-index:1; }
+
+/* RTL tweaks */
+html[dir="rtl"] .dropdown-menu { text-align:right; }
+
+/* Responsive helpers */
+@media (max-width: 576px) {
+  #filterBar .form-label{ display:none; }
+}
