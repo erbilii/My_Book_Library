@@ -71,6 +71,12 @@ include __DIR__ . '/partials/header.php';
 include __DIR__ . '/partials/nav.php';
 $user = current_user();
 ?>
+<style>
+.cover-cell { width: 64px; }
+.thumb { width:64px!important; height:96px!important; object-fit:cover; border-radius:6px; background:#e9ecef; }
+.thumb.thumb--placeholder { display:inline-block; }
+</style>
+
 <div class="container py-4">
     <div class="d-flex flex-wrap gap-2 align-items-end mb-3" id="filterBar">
         <form class="row g-2 flex-grow-1" method="get">
@@ -135,7 +141,7 @@ $user = current_user();
             <thead>
                 <tr>
                     <th>#</th>
-                    <th>Cover</th>
+                    <th class="cover-cell"><?= t('cover') ?></th>
                     <th><?= t('title') ?></th>
                     <th><?= t('author') ?></th>
                     <th><?= t('isbn') ?></th>
@@ -150,7 +156,7 @@ $user = current_user();
                 <?php foreach ($rows as $i => $r): ?>
                     <tr>
                         <td><?= $offset + $i + 1 ?></td>
-                        <td style="width:64px;">
+                        <td class="cover-cell">
                             <?php if (!empty($r['cover'])): ?>
                                 <img src="<?= htmlspecialchars($r['cover']) ?>" alt="" class="thumb" loading="lazy">
                             <?php else: ?>

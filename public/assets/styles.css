@@ -9,3 +9,7 @@
   display:inline-block;
   background:linear-gradient(135deg,#e9ecef,#f8f9fa);
 }
+
+/* Book list cover thumbnails */
+.cover-cell { width: 64px; }
+.thumb { width: 64px !important; height: 96px !important; object-fit: cover; border-radius: 6px; }
