@@ -1,28 +1,6 @@
-// Dark mode toggle (Bootstrap 5.3)
-(function () {
-  const root = document.documentElement;
-  const btn  = document.getElementById('themeToggle');
-  const KEY  = 'theme';
+// app.js — no dark mode code here
 
-  function apply(t) {
-    root.setAttribute('data-bs-theme', t);
-    const label = btn ? btn.querySelector('.label') : null;
-    if (label) label.textContent = (t === 'dark') ? 'Light mode' : 'Dark mode';
-  }
-
-  const saved = localStorage.getItem(KEY) ||
-    (window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light');
-  apply(saved);
-
-  btn && btn.addEventListener('click', (e) => {
-    e.preventDefault();
-    const next = (root.getAttribute('data-bs-theme') === 'dark') ? 'light' : 'dark';
-    localStorage.setItem(KEY, next);
-    apply(next);
-  });
-})();
-
-// Export helpers (CSV, XLSX, PDF) from #booksTable
+// ====== Export helpers (CSV, XLSX, PDF) from #booksTable ======
 function tableTo2DArray(table){
   const rows=[...table.querySelectorAll('tr')];
   return rows.map(r=>[...r.children].map(c=>c.innerText.trim()));
