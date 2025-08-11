@@ -23,6 +23,7 @@ $id = (int) ($_GET['id'] ?? 0);
 $isEdit = $id > 0;
 $book = [
     'title' => '',
+    'cover' => '',
     'author' => '',
     'isbn' => '',
     'year' => '',
@@ -50,14 +51,49 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         'description' => trim($_POST['description'] ?? ''),
     ];
 
-    if ($isEdit) {
-        $stmt = $pdo->prepare('UPDATE books SET title=?, author=?, isbn=?, year=?, language_code=?, genre_id=?, tags=?, description=?, updated_at=NOW() WHERE id=?');
-        $stmt->execute([$data['title'], $data['author'], $data['isbn'], $data['year'], $data['language_code'], $data['genre_id'], $data['tags'], $data['description'], $id]);
-    } else {
-        $stmt = $pdo->prepare('INSERT INTO books(title,author,isbn,year,language_code,genre_id,tags,description) VALUES(?,?,?,?,?,?,?,?)');
-        $stmt->execute([$data['title'], $data['author'], $data['isbn'], $data['year'], $data['language_code'], $data['genre_id'], $data['tags'], $data['description']]);
+    $uploadsDir = __DIR__ . '/uploads';
+    if (!is_dir($uploadsDir)) {
+        @mkdir($uploadsDir, 0755, true);
     }
-    header('Location: /public/dashboard.php');
+
+    $coverPath = $book['cover'] ?? null;
+    if (!empty($_FILES['cover']['name']) && $_FILES['cover']['error'] === UPLOAD_ERR_OK) {
+        $tmp = $_FILES['cover']['tmp_name'];
+        $size = (int) $_FILES['cover']['size'];
+        $f = finfo_open(FILEINFO_MIME_TYPE);
+        $mime = finfo_file($f, $tmp);
+        finfo_close($f);
+        $allowed = ['image/jpeg' => 'jpg', 'image/png' => 'png', 'image/webp' => 'webp'];
+        if (!isset($allowed[$mime]))
+            die('Invalid image type. Use JPG/PNG/WEBP.');
+        if ($size > 2 * 1024 * 1024)
+            die('Image too large (max 2MB).');
+
+        $ext = $allowed[$mime];
+        $name = 'cover_' . time() . '_' . bin2hex(random_bytes(4)) . '.' . $ext;
+        $destRel = 'uploads/' . $name;
+        $destAbs = __DIR__ . '/' . $destRel;
+        if (!move_uploaded_file($tmp, $destAbs))
+            die('Failed to save image.');
+
+        if (!empty($book['cover'])) {
+            $oldAbs = __DIR__ . '/' . $book['cover'];
+            if (is_file($oldAbs)) {
+                @unlink($oldAbs);
+            }
+        }
+        $coverPath = $destRel;
+    }
+
+    if ($isEdit) {
+        $stmt = $pdo->prepare('UPDATE books SET title=?, cover=?, author=?, isbn=?, year=?, language_code=?, genre_id=?, tags=?, description=?, updated_at=NOW() WHERE id=?');
+        $stmt->execute([$data['title'], $coverPath, $data['author'], $data['isbn'], $data['year'], $data['language_code'], $data['genre_id'], $data['tags'], $data['description'], $id]);
+    } else {
+        $stmt = $pdo->prepare('INSERT INTO books(title,cover,author,isbn,year,language_code,genre_id,tags,description) VALUES(?,?,?,?,?,?,?,?,?)');
+        $stmt->execute([$data['title'], $coverPath, $data['author'], $data['isbn'], $data['year'], $data['language_code'], $data['genre_id'], $data['tags'], $data['description']]);
+    }
+
+    header('Location: dashboard.php');
     exit;
 }
 
@@ -69,10 +105,20 @@ include __DIR__ . '/partials/nav.php';
     <div class="card shadow-sm">
         <div class="card-body">
             <h1 class="h5 mb-3"><?= $isEdit ? t('edit_book') : t('add_book') ?></h1>
-            <form method="post" class="row g-3">
+            <form method="post" class="row g-3" enctype="multipart/form-data">
                 <div class="col-md-6">
                     <label class="form-label"><?= t('title') ?></label>
                     <input name="title" class="form-control" required value="<?= htmlspecialchars($book['title']) ?>">
+                </div>
+                <div class="col-md-3">
+                    <label class="form-label">Cover</label>
+                    <input type="file" name="cover" accept="image/*" class="form-control">
+                    <?php if (!empty($book['cover'])): ?>
+                        <div class="mt-2">
+                            <img src="<?= htmlspecialchars($book['cover']) ?>" alt="cover"
+                                style="width:90px;height:120px;object-fit:cover;border-radius:6px;">
+                        </div>
+                    <?php endif; ?>
                 </div>
                 <div class="col-md-6">
                     <label class="form-label"><?= t('author') ?></label>
@@ -118,7 +164,7 @@ include __DIR__ . '/partials/nav.php';
                 </div>
                 <div class="col-12 d-flex gap-2">
                     <button class="btn btn-primary"><?= t('save') ?></button>
-                    <a class="btn btn-secondary" href="/public/dashboard.php"><?= t('cancel') ?></a>
+                    <a class="btn btn-secondary" href="dashboard.php"><?= t('cancel') ?></a>
                 </div>
             </form>
         </div>

@@ -8,7 +8,6 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     $pass = $_POST['password'] ?? '';
     if (login($email, $pass)) {
         header('Location: dashboard.php');
-
         exit;
     }
     $error = 'Invalid credentials';

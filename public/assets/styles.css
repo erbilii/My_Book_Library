@@ -1,15 +1,11 @@
-:root{ --bg:#ffffff; --fg:#111111; --muted:#6c757d; --card:#ffffff; }
-[data-theme="dark"]{ --bg:#0e0f12; --fg:#e6e6e6; --muted:#a0a0a0; --card:#151720; }
+/* existing styles ... */
 
-html,body{ background:var(--bg); color:var(--fg); }
-.card{ background:var(--card); }
-#topbar{ background:var(--card); }
-.table thead th{ position:sticky; top:0; background:var(--card); z-index:1; }
-
-/* RTL tweaks */
-html[dir="rtl"] .dropdown-menu { text-align:right; }
-
-/* Responsive helpers */
-@media (max-width: 576px) {
-  #filterBar .form-label{ display:none; }
+.thumb {
+  width:48px; height:64px; object-fit:cover; border-radius:6px;
+  box-shadow: 0 1px 3px rgba(0,0,0,.15);
+  background:#e9ecef;
+}
+.thumb--placeholder {
+  display:inline-block;
+  background:linear-gradient(135deg,#e9ecef,#f8f9fa);
 }

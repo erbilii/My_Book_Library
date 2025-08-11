@@ -1,8 +1,13 @@
-<?php $user = current_user();
-$isAdmin = $user && $user['role'] === 'admin'; ?>
+<?php
+require_once __DIR__ . '/../../auth.php';
+require_once __DIR__ . '/../../i18n.php';
+$cfg = require __DIR__ . '/../../config.php';
+$user = current_user();
+$isAdmin = $user && $user['role'] === 'admin';
+?>
 <nav class="navbar navbar-expand-lg shadow-sm sticky-top" id="topbar">
     <div class="container-fluid">
-        <a class="navbar-brand" href="/public/dashboard.php"><?= t('app_title') ?></a>
+        <a class="navbar-brand" href="dashboard.php"><?= t('app_title') ?></a>
         <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navmenu">
             <span class="navbar-toggler-icon"></span>
         </button>
